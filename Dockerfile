@@ -2,11 +2,11 @@
 WORKDIR /app
 
 # Copy csproj and restore as distinct layers
-COPY *.csproj ./
+COPY DiscordHealBot/DiscordHealBot/*.* ./
 RUN dotnet restore
 
-# Copy everything else and build
-COPY . ./
+# Build
+
 RUN dotnet publish -c Release -o out
 
 # Build runtime image
