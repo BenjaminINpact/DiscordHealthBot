@@ -33,7 +33,7 @@ Create an appsettings.json. This file should be located in the same folder as yo
 
 ## configuration variables
 
-`FamilyReporting` : if true
+`FamilyReporting` : if true, broadcast average latency per family instead of per endpoint reporting
 
 `TimeInterval` : Time (in seconds) between two loops
 
