@@ -6,5 +6,6 @@
         public bool Success { get; set; }
         public double Latency { get; set; }
         public int StatusCode { get; set; }
+        public string Family { get; set; }
     }
 }

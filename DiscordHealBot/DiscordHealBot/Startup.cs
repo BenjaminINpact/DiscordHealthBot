@@ -37,7 +37,7 @@ namespace DiscordHealBot
         protected CancellationTokenSource CancellationTokenSource { get; }
 
         protected JobSettings Settings { get; set; }
-        protected List<string> Endpoints { get; set; }
+        protected List<Endpoint> Endpoints { get; set; }
         protected string DiscordWebHook { get; set; }
 
         public async Task RunAsync()
@@ -48,57 +48,22 @@ namespace DiscordHealBot
                 Logger.LogInformation("Job is looping");
 
                 List<EndPointHealthResult> epResults = await RunEndPointsAsync();
-                await BroadcastResultsAsync(epResults);
+                await BroadCaster.BroadcastResultsAsync(epResults, this.DiscordWebHook, Settings.FamilyReporting);
                 await Task.Delay(Settings.GetTimeIntervalInMs());
             }
         }
 
-        private async Task BroadcastResultsAsync(List<EndPointHealthResult> epResults)
-        {
-            var client = new DiscordWebhookClient(this.DiscordWebHook);
-            Color embedColor = DecideEmbedColor(epResults);
-            EmbedBuilder builder = new EmbedBuilder();
-            var b =  builder.WithTitle("Latency Report")
-                .WithDescription(ToDiscordDescription(epResults))
-                .WithColor(embedColor)
-                .Build();
-       
-       
-            await client.SendMessageAsync(embeds: new List<Embed>() { b }, username:"Latency Bot");
-          
-        }
+      
 
-        private Color DecideEmbedColor(List<EndPointHealthResult> epResults)
-        {
-            if (epResults.Any(x => !x.Success) || epResults.Any(x => x.Latency > 10000))
-            {
-                return Color.Red;
-            }
+   
 
-            if (epResults.Any(x => x.Latency > 2000))
-            {
-                return Color.Orange;
-            }
-
-            return Color.Green;
-        }
-
-        private string ToDiscordDescription(List<EndPointHealthResult> epResults)
-        {
-          //  
-          var str = epResults.Select(x =>
-          {
-              return $"{x.EndpointAddress} responds with code {x.StatusCode} in {x.Latency}ms";
-          }).ToList();
-
-          return string.Join('\n', str);
-        }
+   
 
         private async Task<List<EndPointHealthResult>> RunEndPointsAsync()
         {
  
             List<EndPointHealthResult> endPointHealthResults =  new List<EndPointHealthResult>();
-            foreach (string endpointAdress in Endpoints)
+            foreach (Endpoint ep in Endpoints)
             {
                 Stopwatch stopwatch = new Stopwatch();
                 bool success = false;
@@ -106,7 +71,7 @@ namespace DiscordHealBot
                 stopwatch.Start();
                 try
                 {
-                    var response = await endpointAdress.GetAsync();
+                    var response = await ep.Address.GetAsync();
                     success = response.StatusCode > 199 && response.StatusCode < 400;
                     statusCode = response.StatusCode;
                 }
@@ -119,9 +84,10 @@ namespace DiscordHealBot
                 EndPointHealthResult healthResult = new EndPointHealthResult()
                 {
                     Latency = stopwatch.ElapsedMilliseconds,
-                    EndpointAddress =  endpointAdress,
+                    EndpointAddress =  ep.Address,
                     Success =  success,
-                    StatusCode =  statusCode
+                    StatusCode =  statusCode,
+                    Family =  ep.FamilyName
                 };
 
                 endPointHealthResults.Add(healthResult);
@@ -140,7 +106,7 @@ namespace DiscordHealBot
 
             Settings = settings;
 
-            List<string> endpoints = configuration.GetSection("Endpoints").Get<List<string>>();
+            List<Endpoint> endpoints = configuration.GetSection("Endpoints").Get<List<Endpoint>>();
             if (endpoints == null || endpoints.Count < 1)
             {
                 throw new InvalidDataException("No Endpoint to monitor, check your appsettings file");
