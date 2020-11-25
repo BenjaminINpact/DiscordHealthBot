@@ -47,17 +47,19 @@ namespace DiscordHealBot
             {
                 Logger.LogInformation("Job is looping");
 
+                Stopwatch stopwatch = new Stopwatch();
+                stopwatch.Start();
                 List<EndPointHealthResult> epResults = await RunEndPointsAsync();
                 await BroadCaster.BroadcastResultsAsync(epResults, this.DiscordWebHook, Settings.FamilyReporting);
-                await Task.Delay(Settings.GetTimeIntervalInMs());
+                stopwatch.Stop();
+
+                int result = Settings.GetTimeIntervalInMs() > (int)(stopwatch.ElapsedMilliseconds)
+                    ? Settings.GetTimeIntervalInMs() - (int)(stopwatch.ElapsedMilliseconds)
+                    : Settings.GetTimeIntervalInMs();
+
+                await Task.Delay(result);
             }
         }
-
-      
-
-   
-
-   
 
         private async Task<List<EndPointHealthResult>> RunEndPointsAsync()
         {
