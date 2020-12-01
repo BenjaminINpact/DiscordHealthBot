@@ -11,7 +11,9 @@ Create an appsettings.json. This file should be located in the same folder as yo
     "JobSettings": {
         "TimeInterval": 30,
         "PollingInterval": 10,
-        "FamilyReporting": true
+        "FamilyReporting": true,
+        "SendAlert": true,
+        "AlertFloor": 10000
     },
     "EndPoints": [
           {
@@ -43,6 +45,10 @@ Create an appsettings.json. This file should be located in the same folder as yo
 `EndPoints` : Endpoints to check
 
 `DiscordWebHook` : Discord Web Hook Url
+
+`SendAlert`: Immedialty send an alert when an endpoint is laggy
+
+`AlertFloor` : Time in milliseconds that trigger `SendAlert`
 
 # Docker Instructions 
 

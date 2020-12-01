@@ -50,23 +50,7 @@ namespace DiscordHealBot
             Task pollingTask = PollAsync();
             Task repotingTask = ReportAsync();
             await Task.WhenAll(pollingTask, repotingTask);
-
-            while (!CancellationTokenSource.IsCancellationRequested)
-            {
-                Logger.LogInformation("Job is looping");
-
-                Stopwatch stopwatch = new Stopwatch();
-                stopwatch.Start();
-
-
-                stopwatch.Stop();
-
-                int result = Settings.GetAnnouncementTimeIntervalInMs() > (int) (stopwatch.ElapsedMilliseconds)
-                    ? Settings.GetAnnouncementTimeIntervalInMs() - (int) (stopwatch.ElapsedMilliseconds)
-                    : Settings.GetAnnouncementTimeIntervalInMs();
-
-                await Task.Delay(result);
-            }
+            
         }
 
         private async Task ReportAsync()
@@ -100,7 +84,20 @@ namespace DiscordHealBot
                     QueueResults.Enqueue(endPointHealthResult);
                 }
 
+                await TrySendAlertAsync();
                 await Task.Delay(Settings.GetPollingTimeIntervalInMs());
+            }
+        }
+
+        private async Task TrySendAlertAsync()
+        {
+            if (Settings.SendAlert)
+            {
+                var exceeded = QueueResults.Where(x => x.Latency > Settings.AlertFloor).ToList();
+                if (exceeded.Count > 0)
+                {
+                   await BroadCaster.BroadcastAlertAsync(exceeded, DiscordWebHook);
+                }
             }
         }
 
