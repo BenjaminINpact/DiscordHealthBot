@@ -76,7 +76,7 @@ namespace DiscordHealBot
         {
             var average = Math.Round(keyValuePair.Value.Select(x => x.Latency).Average());
             var str =
-                $"Family Report : {keyValuePair.Key} ({keyValuePair.Value.Count } endpoints). Average latency is {average}ms";
+                $"Family Report : {keyValuePair.Key} ({keyValuePair.Value.DistinctBy(x=> x.EndpointAddress).Count() } endpoints, {keyValuePair.Value.Count} runs). Average latency is {average}ms";
 
             EmbedBuilder builder = new EmbedBuilder();
             Color embedColor = DecideEmbedColorClassic(keyValuePair.Value);

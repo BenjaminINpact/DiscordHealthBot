@@ -10,6 +10,7 @@ Create an appsettings.json. This file should be located in the same folder as yo
 
     "JobSettings": {
         "TimeInterval": 30,
+        "PollingInterval": 10,
         "FamilyReporting": true
     },
     "EndPoints": [
@@ -35,7 +36,9 @@ Create an appsettings.json. This file should be located in the same folder as yo
 
 `FamilyReporting` : if true, broadcast average latency per family instead of per endpoint reporting
 
-`TimeInterval` : Time (in seconds) between two loops
+`TimeInterval` : Time (in seconds) between two discord annoucement
+
+`PollingInterval`: Time (in seconds) between two polling loop
 
 `EndPoints` : Endpoints to check
 
