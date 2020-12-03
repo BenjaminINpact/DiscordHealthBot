@@ -38,7 +38,15 @@
         /// </summary>
         public string TimeUnit { get; set; }
 
+        /// <summary>
+        /// allowed data redis storage 
+        /// </summary>
+        public bool StoreData { get; set; }
 
+        /// <summary>
+        /// Connection string to redis server
+        /// </summary>
+        public string ConnectionStrings { get; set; }
         public int GetAnnouncementTimeIntervalInMs()
         {
             return TimeInterval * 1000;

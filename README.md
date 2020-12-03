@@ -38,8 +38,6 @@ Create an appsettings.json. This file should be located in the same folder as yo
 
 ## configuration variables
 
-`ConnectionStrings` : database connection string to ensure data continuity in case of random crash
-
 `FamilyReporting` : if true, broadcast average latency per family instead of per endpoint reporting
 
 `TimeInterval` : Time (in seconds) between two discord annoucement
@@ -57,6 +55,10 @@ Create an appsettings.json. This file should be located in the same folder as yo
 `FixedTime` : Trigger the broadcast at a fixed time unit, it cancels TimeInterval
 
 `TimeUnit` : Unit of time (string ) which configures FixedTime: "day", "hour", "minute"
+
+`StoreData` : allowed application to store data using Redis to ensure data continuity in case of random crash
+
+`ConnectionStrings` : connection strings to Redis Server
 
 # Docker Instructions 
 

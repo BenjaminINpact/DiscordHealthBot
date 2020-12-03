@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Discord;
@@ -13,16 +14,23 @@ using Flurl.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 
 namespace DiscordHealBot
 {
     public class Startup
     {
+        
         public Startup(IConfiguration configuration, IServiceCollection serviceCollection)
         {
             ServiceProvider = serviceCollection.BuildServiceProvider();
             AssertConfiguration(configuration);
-
+            if (Settings.StoreData)
+            {
+                ConnectionMultiplexer redis = ConnectionMultiplexer.Connect(Settings.ConnectionStrings);
+                db = redis.GetDatabase();
+            }
+              
             using (var scope = ServiceProvider.CreateScope())
             {
                 Logger = scope.ServiceProvider.GetService<ILogger<Startup>>();
@@ -32,7 +40,7 @@ namespace DiscordHealBot
             this.CancellationTokenSource = new CancellationTokenSource();
         }
 
-
+        protected IDatabase db { get; }
         protected ILogger Logger { get; }
         protected ServiceProvider ServiceProvider { get; }
         protected CancellationTokenSource CancellationTokenSource { get; }
@@ -46,11 +54,25 @@ namespace DiscordHealBot
         public async Task RunAsync()
         {
             Logger.LogInformation($"Job Started at {DateTime.UtcNow:h:mm:ss tt zz}, {Settings.TimeInterval}s interval");
-            //stockage date
+            if(Settings.StoreData)
+                InjectEndpointsResultsList();
             Task pollingTask = PollAsync();
             Task repotingTask = ReportAsync();
             await Task.WhenAll(pollingTask, repotingTask);
             
+        }
+
+        private void InjectEndpointsResultsList()
+        {
+            if (db.KeyExists("endPointsResultsList"))
+            {
+                List<EndPointHealthResult> list = JsonSerializer.Deserialize<List<EndPointHealthResult>>(db.StringGet("endPointsResultsList"));
+                foreach (var element in list)
+                {
+                    QueueResults.Enqueue(element);
+                }
+            }
+            db.KeyDelete("endPointsResultsList");
         }
 
         private async Task ReportAsync()
@@ -69,12 +91,9 @@ namespace DiscordHealBot
                 if (epResults.Count > 0)
                 {
                     await BroadCaster.BroadcastResultsAsync(epResults, this.DiscordWebHook, Settings.FamilyReporting);
-                    // update date de la derniere entrée
                 }
                 
-
-                TimeSpan delay = new TimeSpan();
-                   //vider liste endpointshealhresult bdd
+                TimeSpan delay;
                 if(Settings.FixedTime)
                 {
                     switch (Settings.TimeUnit)
@@ -92,14 +111,8 @@ namespace DiscordHealBot
                     }
                 } else
                 {
-                    //if(plusieurs rapport en bdd) 
-                    //      delay = (date[0] + timeinterval) - date.now;
-                    //      vider date[0];
-                    //else
                     delay = TimeSpan.FromMilliseconds(Settings.GetAnnouncementTimeIntervalInMs());
-                    
                 }
-
                 await Task.Delay(delay);
             }
         }
@@ -110,15 +123,12 @@ namespace DiscordHealBot
             {
                 Logger.LogInformation("Job is polling ..." + QueueResults.Count());
                 List<EndPointHealthResult> epResults = await RunEndPointsAsync();
-                //getListEndpointsResult
-                  // if(list.count > 0)
-                     //  boucle pour add à la queue
-                     // vider table Endpointresult
                 foreach (EndPointHealthResult endPointHealthResult in epResults)
                 {
                     QueueResults.Enqueue(endPointHealthResult);
                 }
-
+                if (Settings.StoreData)
+                    StoreEndpointsList(QueueResults.ToList());
                 await TrySendAlertAsync();
                 await Task.Delay(Settings.GetPollingTimeIntervalInMs());
             }
@@ -168,10 +178,15 @@ namespace DiscordHealBot
                 };
 
                 endPointHealthResults.Add(healthResult);
-                //creation d'un endpointresult en bdd
+                
             }
-
+           
             return endPointHealthResults.ToList();
+        }
+
+        private void StoreEndpointsList(List<EndPointHealthResult> list)
+        {
+            db.StringSet("endPointsResultsList", $"{JsonSerializer.Serialize(list)}");
         }
 
         protected void AssertConfiguration(IConfiguration configuration)
