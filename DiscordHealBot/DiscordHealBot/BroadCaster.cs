@@ -26,6 +26,21 @@ namespace DiscordHealBot
             await client.SendMessageAsync(embeds: embeds, username: "Latency Bot");
         }
 
+        public static async Task BroadcastAlertAsync(List<EndPointHealthResult> epResults, string discordWebhook)
+        {
+            var client = new DiscordWebhookClient(discordWebhook);
+            Color embedColor = Color.Red;
+            EmbedBuilder builder = new EmbedBuilder();
+            var description = epResults.Select(x =>
+            {
+                return $"⚠ : {x.EndpointAddress} responds with code {x.StatusCode} in {x.Latency}ms @here";
+            }).ToList();
+            var b = builder.WithTitle("Latency Alert")
+                .WithDescription(string.Join('\n', description))
+                .WithColor(embedColor)
+                .Build();
+        }
+
         private static Color DecideEmbedColorClassic(List<EndPointHealthResult> epResults)
         {
             if (epResults.Any(x => !x.Success) || epResults.Any(x => x.Latency > 10000))
@@ -76,18 +91,22 @@ namespace DiscordHealBot
         {
             var average = Math.Round(keyValuePair.Value.Select(x => x.Latency).Average());
             var str =
-                $"Family Report : {keyValuePair.Key} ({keyValuePair.Value.Count } endpoints). Average latency is {average}ms";
+                $"Family Report : {keyValuePair.Key} ({keyValuePair.Value.DistinctBy(x=> x.EndpointAddress).Count() } endpoints, {keyValuePair.Value.Count} runs). Average latency is {average}ms";
 
             EmbedBuilder builder = new EmbedBuilder();
+            var slowest = keyValuePair.Value.GetSlowest();
             Color embedColor = DecideEmbedColorClassic(keyValuePair.Value);
             var b = builder.WithTitle("Latency Report")
                 .WithDescription(str)
                 .WithColor(embedColor)
+                .AddField("Slowest Run", $"{slowest.EndpointAddress} | {slowest.Latency} ms | {slowest.DateRun}")
                 .Build();
 
             return b;
         }
 
+       
+        
         private static string ToClassicDescription(List<EndPointHealthResult> epResults)
         {
             var str = epResults.Select(x =>
