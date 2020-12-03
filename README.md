@@ -7,13 +7,15 @@ Create an appsettings.json. This file should be located in the same folder as yo
 ## appsettings.json example
 ```json
 {
-
+	"ConnectionStrings": "",
     "JobSettings": {
         "TimeInterval": 30,
         "PollingInterval": 10,
         "FamilyReporting": true,
         "SendAlert": true,
-        "AlertFloor": 10000
+        "AlertFloor": 10000,
+		"FixedTime": true,
+		"TimeUnit" :  "hour",
     },
     "EndPoints": [
           {
@@ -36,6 +38,8 @@ Create an appsettings.json. This file should be located in the same folder as yo
 
 ## configuration variables
 
+`ConnectionStrings` : database connection string to ensure data continuity in case of random crash
+
 `FamilyReporting` : if true, broadcast average latency per family instead of per endpoint reporting
 
 `TimeInterval` : Time (in seconds) between two discord annoucement
@@ -49,6 +53,10 @@ Create an appsettings.json. This file should be located in the same folder as yo
 `SendAlert`: Immedialty send an alert when an endpoint is laggy
 
 `AlertFloor` : Time in milliseconds that trigger `SendAlert`
+
+`FixedTime` : Trigger the broadcast at a fixed time unit, it cancels TimeInterval
+
+`TimeUnit` : Unit of time (string ) which configures FixedTime: "day", "hour", "minute"
 
 # Docker Instructions 
 

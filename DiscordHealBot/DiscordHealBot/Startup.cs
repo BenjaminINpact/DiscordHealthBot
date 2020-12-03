@@ -46,7 +46,7 @@ namespace DiscordHealBot
         public async Task RunAsync()
         {
             Logger.LogInformation($"Job Started at {DateTime.UtcNow:h:mm:ss tt zz}, {Settings.TimeInterval}s interval");
-
+            //stockage date
             Task pollingTask = PollAsync();
             Task repotingTask = ReportAsync();
             await Task.WhenAll(pollingTask, repotingTask);
@@ -57,7 +57,9 @@ namespace DiscordHealBot
         {
             while (!CancellationTokenSource.IsCancellationRequested)
             {
-                Logger.LogInformation("Job is announcing ...");
+                Logger.LogInformation($"Job Started at {DateTime.UtcNow:h:mm:ss tt zz}, {Settings.TimeInterval}s interval");
+
+                Logger.LogInformation("Job is announcing ..." + QueueResults.Count());
                 List<EndPointHealthResult> epResults = new List<EndPointHealthResult>();
                 while (QueueResults.TryDequeue(out var endPointHealthResult))
                 {
@@ -67,9 +69,38 @@ namespace DiscordHealBot
                 if (epResults.Count > 0)
                 {
                     await BroadCaster.BroadcastResultsAsync(epResults, this.DiscordWebHook, Settings.FamilyReporting);
+                    // update date de la derniere entrée
+                }
+                
+
+                TimeSpan delay = new TimeSpan();
+                   //vider liste endpointshealhresult bdd
+                if(Settings.FixedTime)
+                {
+                    switch (Settings.TimeUnit)
+                    {
+                        case "day" :
+                            delay = (DateTime.Now.AddDays(1).Date - DateTime.Now);
+                            break;
+                        default:
+                        case "hour" :
+                            delay = TimeSpan.FromMinutes(60 - DateTime.Now.Minute);
+                            break;
+                        case "minute":
+                            delay = TimeSpan.FromSeconds(60 - DateTime.Now.Second);
+                            break;
+                    }
+                } else
+                {
+                    //if(plusieurs rapport en bdd) 
+                    //      delay = (date[0] + timeinterval) - date.now;
+                    //      vider date[0];
+                    //else
+                    delay = TimeSpan.FromMilliseconds(Settings.GetAnnouncementTimeIntervalInMs());
+                    
                 }
 
-                await Task.Delay(Settings.GetAnnouncementTimeIntervalInMs());
+                await Task.Delay(delay);
             }
         }
 
@@ -77,8 +108,12 @@ namespace DiscordHealBot
         {
             while (!CancellationTokenSource.IsCancellationRequested)
             {
-                Logger.LogInformation("Job is polling ...");
+                Logger.LogInformation("Job is polling ..." + QueueResults.Count());
                 List<EndPointHealthResult> epResults = await RunEndPointsAsync();
+                //getListEndpointsResult
+                  // if(list.count > 0)
+                     //  boucle pour add à la queue
+                     // vider table Endpointresult
                 foreach (EndPointHealthResult endPointHealthResult in epResults)
                 {
                     QueueResults.Enqueue(endPointHealthResult);
@@ -132,6 +167,7 @@ namespace DiscordHealBot
                 };
 
                 endPointHealthResults.Add(healthResult);
+                //creation d'un endpointresult en bdd
             }
 
             return endPointHealthResults.ToList();
