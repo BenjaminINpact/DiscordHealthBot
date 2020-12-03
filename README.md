@@ -7,15 +7,16 @@ Create an appsettings.json. This file should be located in the same folder as yo
 ## appsettings.json example
 ```json
 {
-	"ConnectionStrings": "",
     "JobSettings": {
         "TimeInterval": 30,
         "PollingInterval": 10,
         "FamilyReporting": true,
         "SendAlert": true,
         "AlertFloor": 10000,
-		"FixedTime": true,
-		"TimeUnit" :  "hour",
+	"FixedTime": true,
+	"TimeUnit" :  "hour",
+	"ConnectionStrings": "myredisserver.com, password=xxx",
+	"StoreData" : false
     },
     "EndPoints": [
           {
