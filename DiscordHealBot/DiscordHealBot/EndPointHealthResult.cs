@@ -1,4 +1,6 @@
-﻿namespace DiscordHealBot
+﻿using System;
+
+namespace DiscordHealBot
 {
     public class EndPointHealthResult
     {
@@ -7,5 +9,6 @@
         public double Latency { get; set; }
         public int StatusCode { get; set; }
         public string Family { get; set; }
+        public DateTime DateRun { get; set; }
     }
 }
