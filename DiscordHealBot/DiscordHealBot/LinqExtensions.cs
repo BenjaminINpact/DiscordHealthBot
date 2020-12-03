@@ -39,6 +39,11 @@ namespace DiscordHealBot
                 }
             }
         }
+
+        public static EndPointHealthResult GetSlowest(this IEnumerable<EndPointHealthResult> source)
+        {
+            return source.OrderByDescending(x => x.Latency).FirstOrDefault();
+        }
         
         
     }

@@ -94,15 +94,19 @@ namespace DiscordHealBot
                 $"Family Report : {keyValuePair.Key} ({keyValuePair.Value.DistinctBy(x=> x.EndpointAddress).Count() } endpoints, {keyValuePair.Value.Count} runs). Average latency is {average}ms";
 
             EmbedBuilder builder = new EmbedBuilder();
+            var slowest = keyValuePair.Value.GetSlowest();
             Color embedColor = DecideEmbedColorClassic(keyValuePair.Value);
             var b = builder.WithTitle("Latency Report")
                 .WithDescription(str)
                 .WithColor(embedColor)
+                .AddField("Slowest Run", $"{slowest.EndpointAddress} | {slowest.Latency} ms | {slowest.DateRun}")
                 .Build();
 
             return b;
         }
 
+       
+        
         private static string ToClassicDescription(List<EndPointHealthResult> epResults)
         {
             var str = epResults.Select(x =>

@@ -163,7 +163,8 @@ namespace DiscordHealBot
                     EndpointAddress = ep.Address,
                     Success = success,
                     StatusCode = statusCode,
-                    Family = ep.FamilyName
+                    Family = ep.FamilyName,
+                    DateRun = DateTime.UtcNow
                 };
 
                 endPointHealthResults.Add(healthResult);
