@@ -56,6 +56,18 @@ namespace DiscordHealBot
             return Color.Green;
         }
 
+        private static Color DecideEmbedColorFamily(List<EndPointHealthResult> epResults)
+        {
+            var average = epResults.Average(x => x.Latency);
+
+            return average switch
+            {
+                > 0 and < 1000 => Color.Green,
+                >= 1000 and < 2000 => Color.Orange,
+                _ => Color.Red
+            };
+        }
+
         private static List<Embed> CreateClassicEmbeds(List<EndPointHealthResult> epResults)
         {
             Color embedColor = DecideEmbedColorClassic(epResults);
@@ -70,7 +82,7 @@ namespace DiscordHealBot
 
         private static List<Embed> CreateFamilyEmbeds(List<EndPointHealthResult> epResults)
         {
-            Color embedColor = DecideEmbedColorClassic(epResults);
+
             Dictionary<string, List<EndPointHealthResult>> split = new Dictionary<string, List<EndPointHealthResult>>();
 
             foreach (EndPointHealthResult epResult in epResults)
@@ -95,11 +107,19 @@ namespace DiscordHealBot
 
             EmbedBuilder builder = new EmbedBuilder();
             var slowest = keyValuePair.Value.GetSlowest();
-            Color embedColor = DecideEmbedColorClassic(keyValuePair.Value);
+            
+            var dot = slowest.Latency switch
+            {
+                > 0 and < 1000 => "🟢",
+                >= 1000 and < 2000 =>  "🟠",
+                _ => "🔴"
+            };
+            
+            Color embedColor = DecideEmbedColorFamily(keyValuePair.Value);
             var b = builder.WithTitle("Latency Report")
                 .WithDescription(str)
                 .WithColor(embedColor)
-                .AddField("Slowest Run", $"{slowest.EndpointAddress} | {slowest.Latency} ms | {slowest.DateRun}")
+                .AddField($"{dot} Slowest Run", $"{slowest.EndpointAddress} | {slowest.Latency} ms | {slowest.DateRun}")
                 .Build();
 
             return b;
