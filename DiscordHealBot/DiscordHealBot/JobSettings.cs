@@ -28,6 +28,25 @@
         /// </summary>
         public int AlertFloor { get; set; }
 
+        /// <summary>
+        /// Trigger the broadcast at a fixed time unit
+        /// </summary>
+        public bool FixedTime { get; set; }
+
+        /// <summary>
+        /// Unit of time (string ) which configures FixedTime
+        /// </summary>
+        public string TimeUnit { get; set; }
+
+        /// <summary>
+        /// allowed data redis storage 
+        /// </summary>
+        public bool StoreData { get; set; }
+
+        /// <summary>
+        /// Connection string to redis server
+        /// </summary>
+        public string ConnectionStrings { get; set; }
         public int GetAnnouncementTimeIntervalInMs()
         {
             return TimeInterval * 1000;
