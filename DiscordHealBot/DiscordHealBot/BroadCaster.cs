@@ -4,41 +4,77 @@ using System.Linq;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Webhook;
+using Microsoft.Extensions.Logging;
 
 namespace DiscordHealBot
 {
     public static class BroadCaster
     {
-        public static async Task BroadcastResultsAsync(List<EndPointHealthResult> epResults, string discordWebhook,
+        public static async Task BroadcastResultsAsync(List<EndPointHealthResult> epResults, string discordWebhook, ILogger logger,
             bool family = false)
         {
-            var client = new DiscordWebhookClient(discordWebhook);
-            List<Embed> embeds = null;
-            if (!family)
+            try
             {
-                embeds = CreateClassicEmbeds(epResults);
-            }
-            else
-            {
-                embeds = CreateFamilyEmbeds(epResults);
-            }
+                var client = new DiscordWebhookClient(discordWebhook);
+                List<Embed> embeds = null;
+                if (!family)
+                {
+                    embeds = CreateClassicEmbeds(epResults);
+                }
+                else
+                {
+                    embeds = CreateFamilyEmbeds(epResults);
+                }
 
-            await client.SendMessageAsync(embeds: embeds, username: "Latency Bot");
+                await client.SendMessageAsync(embeds: embeds, username: "Latency Bot");
+            } catch (Exception e)
+            {
+                logger.LogInformation("Discord connexion failed, check your discord webhook in appsettings.");
+            }
         }
 
-        public static async Task BroadcastAlertAsync(List<EndPointHealthResult> epResults, string discordWebhook)
+        public static async Task BroadcastErrorAsync(string discordWebhook, ILogger logger)
         {
-            var client = new DiscordWebhookClient(discordWebhook);
-            Color embedColor = Color.Red;
-            EmbedBuilder builder = new EmbedBuilder();
-            var description = epResults.Select(x =>
+            try
             {
-                return $"⚠ : {x.EndpointAddress} responds with code {x.StatusCode} in {x.Latency}ms @here";
-            }).ToList();
-            var b = builder.WithTitle("Latency Alert")
-                .WithDescription(string.Join('\n', description))
-                .WithColor(embedColor)
-                .Build();
+                var client = new DiscordWebhookClient(discordWebhook);
+                Color embedColor = Color.Red;
+                EmbedBuilder builder = new EmbedBuilder();
+                var b = builder.WithTitle("Latency Alert")
+                    .WithDescription("⚠ There have been a connexion issue, it will restart. If this problem persists, please contact administrator.")
+                    .WithColor(embedColor)
+                    .Build();
+                List<Embed> embeds = new List<Embed>() { b };
+                await client.SendMessageAsync(embeds: embeds, username: "Latency Bot");
+            }
+            catch (Exception e)
+            {
+                logger.LogInformation("Discord connexion failed, check your discord webhook in appsettings.");
+            }
+        }
+
+        public static async Task BroadcastAlertAsync(List<EndPointHealthResult> epResults, string discordWebhook, ILogger logger)
+        {
+            try
+            {
+                var client = new DiscordWebhookClient(discordWebhook);
+                Color embedColor = Color.Red;
+                EmbedBuilder builder = new EmbedBuilder();
+                var description = epResults.Select(x =>
+                {
+                    return $"⚠ : {x.EndpointAddress} responds with code {x.StatusCode} in {x.Latency}ms @here";
+                }).ToList();
+                var b = builder.WithTitle("Latency Alert")
+                    .WithDescription(string.Join('\n', description))
+                    .WithColor(embedColor)
+                    .Build();
+                List<Embed> embeds = new List<Embed>() { b };
+                await client.SendMessageAsync(embeds: embeds, username: "Latency Bot");
+            }
+            catch(Exception e)
+            {
+                logger.LogInformation("Discord connexion failed, check your discord webhook in appsettings.");
+            }
         }
 
         private static Color DecideEmbedColorClassic(List<EndPointHealthResult> epResults)

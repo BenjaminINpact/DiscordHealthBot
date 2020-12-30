@@ -7,9 +7,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Discord;
-using Discord.Rest;
-using Discord.Webhook;
 using Flurl.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -64,24 +61,29 @@ namespace DiscordHealBot
 
         private void InjectEndpointsResultsList()
         {
-            if (db.KeyExists("endPointsResultsList"))
+            try
             {
-                List<EndPointHealthResult> list = JsonSerializer.Deserialize<List<EndPointHealthResult>>(db.StringGet("endPointsResultsList"));
-                foreach (var element in list)
+                if (db.KeyExists("endPointsResultsList"))
                 {
-                    QueueResults.Enqueue(element);
+                    List<EndPointHealthResult> list = JsonSerializer.Deserialize<List<EndPointHealthResult>>(db.StringGet("endPointsResultsList"));
+                    foreach (var element in list)
+                    {
+                        QueueResults.Enqueue(element);
+                    }
                 }
+                db.KeyDelete("endPointsResultsList");
             }
-            db.KeyDelete("endPointsResultsList");
+            catch(Exception e)
+            {
+                Logger.LogInformation("Redis connexion failed. Check ConnectionStrings key in appsettings or it might be a network issue.");
+            }
         }
 
         private async Task ReportAsync()
         {
             while (!CancellationTokenSource.IsCancellationRequested)
             {
-                Logger.LogInformation($"Job Started at {DateTime.UtcNow:h:mm:ss tt zz}, {Settings.TimeInterval}s interval");
-
-                Logger.LogInformation("Job is announcing ..." + QueueResults.Count());
+                Logger.LogInformation($"Job is announcing at {DateTime.UtcNow:h:mm:ss tt zz} ..." + QueueResults.Count());
                 List<EndPointHealthResult> epResults = new List<EndPointHealthResult>();
                 while (QueueResults.TryDequeue(out var endPointHealthResult))
                 {
@@ -90,7 +92,12 @@ namespace DiscordHealBot
 
                 if (epResults.Count > 0)
                 {
-                    await BroadCaster.BroadcastResultsAsync(epResults, this.DiscordWebHook, Settings.FamilyReporting);
+                    await BroadCaster.BroadcastResultsAsync(epResults, this.DiscordWebHook, Logger, Settings.FamilyReporting);
+                    if (Settings.StoreData)
+                        CleanRedis();
+                } else
+                {
+                    await BroadCaster.BroadcastErrorAsync(this.DiscordWebHook, Logger);
                 }
                 
                 TimeSpan delay;
@@ -117,8 +124,21 @@ namespace DiscordHealBot
             }
         }
 
+        private void CleanRedis()
+        {
+            try
+            {
+                db.KeyDelete("endPointsResultsList");
+            }
+            catch (Exception e)
+            {
+                Logger.LogInformation("Redis connexion failed. Check ConnectionStrings key in appsettings or it might be a network issue.");
+            }
+        }
+
         private async Task PollAsync()
         {
+            
             while (!CancellationTokenSource.IsCancellationRequested)
             {
                 Logger.LogInformation("Job is polling ..." + QueueResults.Count());
@@ -141,7 +161,7 @@ namespace DiscordHealBot
                 var exceeded = QueueResults.Where(x => x.Latency > Settings.AlertFloor).ToList();
                 if (exceeded.Count > 0)
                 {
-                   await BroadCaster.BroadcastAlertAsync(exceeded, DiscordWebHook);
+                   await BroadCaster.BroadcastAlertAsync(exceeded, DiscordWebHook, Logger);
                 }
             }
         }
@@ -163,6 +183,7 @@ namespace DiscordHealBot
                 }
                 catch (Exception e)
                 {
+                    Logger.LogInformation("Endpoints url request failed, it might be a network issue.");
                 }
 
                 stopwatch.Stop();
@@ -186,7 +207,14 @@ namespace DiscordHealBot
 
         private void StoreEndpointsList(List<EndPointHealthResult> list)
         {
-            db.StringSet("endPointsResultsList", $"{JsonSerializer.Serialize(list)}");
+            try
+            {
+                db.StringSet("endPointsResultsList", $"{JsonSerializer.Serialize(list)}");
+            }
+            catch (Exception e)
+            {
+                Logger.LogInformation("Redis connexion failed. Check ConnectionStrings key in appsettings or it might be a network issue.");
+            }
         }
 
         protected void AssertConfiguration(IConfiguration configuration)
@@ -195,6 +223,21 @@ namespace DiscordHealBot
             if (settings == null || settings.TimeInterval < 1 || settings.PollingInterval < 1)
             {
                 throw new InvalidDataException("JobParameters missing from appsettings or incorrect values");
+            }
+
+            if (settings.FixedTime && string.IsNullOrWhiteSpace(settings.TimeUnit))
+            {
+                throw new InvalidDataException("No Time unit, check your appsettings file");
+            }
+
+            if (settings.StoreData && string.IsNullOrWhiteSpace(settings.ConnectionStrings))
+            {
+                throw new InvalidDataException("No ConnectionStrings for redis storage, check your appsettings file");
+            }
+
+            if (settings.SendAlert && settings.AlertFloor < 1)
+            {
+                throw new InvalidDataException("Alert floor missing or incorrect value, check your appsettings file");
             }
 
             Settings = settings;
@@ -214,6 +257,9 @@ namespace DiscordHealBot
             }
 
             DiscordWebHook = discordWebHook;
+
+
+            
         }
     }
 }
