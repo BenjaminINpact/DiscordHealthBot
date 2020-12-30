@@ -37,6 +37,7 @@ namespace DiscordHealBot
             this.CancellationTokenSource = new CancellationTokenSource();
         }
 
+        protected bool isFirstRun { get; set; }
         protected IDatabase db { get; }
         protected ILogger Logger { get; }
         protected ServiceProvider ServiceProvider { get; }
@@ -53,6 +54,7 @@ namespace DiscordHealBot
             Logger.LogInformation($"Job Started at {DateTime.UtcNow:h:mm:ss tt zz}, {Settings.TimeInterval}s interval");
             if(Settings.StoreData)
                 InjectEndpointsResultsList();
+            isFirstRun = true;
             Task pollingTask = PollAsync();
             Task repotingTask = ReportAsync();
             await Task.WhenAll(pollingTask, repotingTask);
@@ -75,7 +77,7 @@ namespace DiscordHealBot
             }
             catch(Exception e)
             {
-                Logger.LogInformation("Redis connexion failed. Check ConnectionStrings key in appsettings or it might be a network issue.");
+                Logger.LogInformation("Redis connexion failed. It might be a network issue.");
             }
         }
 
@@ -97,7 +99,8 @@ namespace DiscordHealBot
                         CleanRedis();
                 } else
                 {
-                    await BroadCaster.BroadcastErrorAsync(this.DiscordWebHook, Logger);
+                    if(!isFirstRun)
+                        await BroadCaster.BroadcastErrorAsync(this.DiscordWebHook, Logger);
                 }
                 
                 TimeSpan delay;
@@ -120,6 +123,7 @@ namespace DiscordHealBot
                 {
                     delay = TimeSpan.FromMilliseconds(Settings.GetAnnouncementTimeIntervalInMs());
                 }
+                isFirstRun = false;
                 await Task.Delay(delay);
             }
         }
@@ -132,7 +136,7 @@ namespace DiscordHealBot
             }
             catch (Exception e)
             {
-                Logger.LogInformation("Redis connexion failed. Check ConnectionStrings key in appsettings or it might be a network issue.");
+                Logger.LogInformation("Redis connexion failed. It might be a network issue.");
             }
         }
 
@@ -183,7 +187,7 @@ namespace DiscordHealBot
                 }
                 catch (Exception e)
                 {
-                    Logger.LogInformation("Endpoints url request failed, it might be a network issue.");
+                    Logger.LogInformation(e.Message);
                 }
 
                 stopwatch.Stop();
@@ -213,7 +217,8 @@ namespace DiscordHealBot
             }
             catch (Exception e)
             {
-                Logger.LogInformation("Redis connexion failed. Check ConnectionStrings key in appsettings or it might be a network issue.");
+                
+                Logger.LogInformation("Redis connexion failed. It might be a network issue.");
             }
         }
 
