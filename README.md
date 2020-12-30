@@ -21,15 +21,15 @@ Create an appsettings.json. This file should be located in the same folder as yo
     "EndPoints": [
           {
             "Address": "https://www.google.fr",
-            "Family" : "SearchEngine"
+            "FamilyName" : "SearchEngine"
           },
           {
             "Address": "https://www.qwant.fr",
-            "Family" : "SearchEngine"
+            "FamilyName" : "SearchEngine"
           },
           {
             "Address": "https://www.twitter.com",
-            "Family" : "Social"
+            "FamilyName" : "Social"
           }
     ],
     "DiscordWebhook": "https://discordapp.com/api/webhooks/xxxx/xxxxx"
