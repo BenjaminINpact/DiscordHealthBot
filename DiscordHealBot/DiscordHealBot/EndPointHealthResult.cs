@@ -2,7 +2,7 @@
 
 namespace DiscordHealBot
 {
-    public class EndPointHealthResult
+    public record EndPointHealthResult
     {
         public string EndpointAddress { get; set; }
         public bool Success { get; set; }
