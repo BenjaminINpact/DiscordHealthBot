@@ -58,7 +58,6 @@ namespace DiscordHealBot
             Task pollingTask = PollAsync();
             Task repotingTask = ReportAsync();
             await Task.WhenAll(pollingTask, repotingTask);
-            
         }
 
         private void InjectEndpointsResultsList()
@@ -142,7 +141,6 @@ namespace DiscordHealBot
 
         private async Task PollAsync()
         {
-            
             while (!CancellationTokenSource.IsCancellationRequested)
             {
                 Logger.LogInformation("Job is polling ..." + QueueResults.Count());
@@ -162,12 +160,23 @@ namespace DiscordHealBot
         {
             if (Settings.SendAlert)
             {
-                var exceeded = QueueResults.Where(x => x.Latency > Settings.AlertFloor).ToList();
+                var exceeded = QueueResults.Where(x => x.Latency > Settings.AlertFloor && !x.AlertSent).ToList();
                 if (exceeded.Count > 0)
                 {
-                   await BroadCaster.BroadcastAlertAsync(exceeded, DiscordWebHook, Logger);
+                    bool success = await BroadCaster.BroadcastAlertAsync(exceeded, DiscordWebHook, Logger);
+                    if(success)
+                        UpdateDataAfterSendAlert(exceeded);
                 }
             }
+        }
+
+        private void UpdateDataAfterSendAlert(List<EndPointHealthResult> exceeded)
+        {
+            foreach(var ep in exceeded)
+                QueueResults.Where(x => x.EndpointAddress == ep.EndpointAddress && x.Latency == ep.Latency && x.DateRun == ep.DateRun).FirstOrDefault().AlertSent = true;
+
+            if(Settings.StoreData)
+                StoreEndpointsList(QueueResults.ToList());
         }
 
         private async Task<List<EndPointHealthResult>> RunEndPointsAsync()
@@ -199,7 +208,8 @@ namespace DiscordHealBot
                     Success = success,
                     StatusCode = statusCode,
                     Family = ep.FamilyName,
-                    DateRun = DateTime.UtcNow
+                    DateRun = DateTime.UtcNow,
+                    AlertSent = false
                 };
 
                 endPointHealthResults.Add(healthResult);
@@ -262,9 +272,7 @@ namespace DiscordHealBot
             }
 
             DiscordWebHook = discordWebHook;
-
-
-            
         }
+
     }
 }

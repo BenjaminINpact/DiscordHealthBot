@@ -10,5 +10,6 @@ namespace DiscordHealBot
         public int StatusCode { get; set; }
         public string Family { get; set; }
         public DateTime DateRun { get; set; }
+        public bool AlertSent { get; set; }
     }
 }
