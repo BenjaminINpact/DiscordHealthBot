@@ -4,15 +4,26 @@ using System.Linq;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Webhook;
+using Microsoft.Extensions.Logging;
 
 namespace DiscordHealBot
 {
     public static class BroadCaster
     {
-        public static async Task BroadcastResultsAsync(List<EndPointHealthResult> epResults, string discordWebhook,
+        public static async Task BroadcastResultsAsync(List<EndPointHealthResult> epResults, string discordWebhook, ILogger logger,
             bool family = false)
         {
-            var client = new DiscordWebhookClient(discordWebhook);
+            bool errorDiscordClient = false;
+            DiscordWebhookClient client = null;
+            try
+            {
+                 client = new DiscordWebhookClient(discordWebhook);
+
+            } catch (Exception e)
+            {
+                logger.LogInformation(e.Message);
+                errorDiscordClient = true;
+            }
             List<Embed> embeds = null;
             if (!family)
             {
@@ -22,13 +33,48 @@ namespace DiscordHealBot
             {
                 embeds = CreateFamilyEmbeds(epResults);
             }
-
-            await client.SendMessageAsync(embeds: embeds, username: "Latency Bot");
+            if(!errorDiscordClient)
+                await client.SendMessageAsync(embeds: embeds, username: "Latency Bot");
         }
 
-        public static async Task BroadcastAlertAsync(List<EndPointHealthResult> epResults, string discordWebhook)
+        public static async Task BroadcastErrorAsync(string discordWebhook, ILogger logger)
         {
-            var client = new DiscordWebhookClient(discordWebhook);
+            bool errorDiscordClient = false;
+            DiscordWebhookClient client = null;
+            try
+            {
+                client = new DiscordWebhookClient(discordWebhook);
+            } catch (Exception e)
+            {
+                logger.LogInformation(e.Message);
+                errorDiscordClient = true;
+            }
+            Color embedColor = Color.Red;
+            EmbedBuilder builder = new EmbedBuilder();
+            var b = builder.WithTitle("Latency Alert")
+                .WithDescription("⚠ There have been a connexion issue, it will restart. If this problem persists, please contact administrator.")
+                .WithColor(embedColor)
+                .Build();
+            List<Embed> embeds = new List<Embed>() { b };
+            if(!errorDiscordClient) 
+                await client.SendMessageAsync(embeds: embeds, username: "Latency Bot");
+ 
+        }
+
+        public static async Task BroadcastAlertAsync(List<EndPointHealthResult> epResults, string discordWebhook, ILogger logger)
+        {
+
+            bool errorDiscordClient = false;
+            DiscordWebhookClient client = null;
+            try
+            {
+                client = new DiscordWebhookClient(discordWebhook);
+            }
+            catch (Exception e)
+            {
+                logger.LogInformation(e.Message);
+                errorDiscordClient = true;
+            }
             Color embedColor = Color.Red;
             EmbedBuilder builder = new EmbedBuilder();
             var description = epResults.Select(x =>
@@ -39,6 +85,11 @@ namespace DiscordHealBot
                 .WithDescription(string.Join('\n', description))
                 .WithColor(embedColor)
                 .Build();
+            List<Embed> embeds = new List<Embed>() { b };
+            if (!errorDiscordClient)
+                await client.SendMessageAsync(embeds: embeds, username: "Latency Bot");
+            
+            
         }
 
         private static Color DecideEmbedColorClassic(List<EndPointHealthResult> epResults)
@@ -77,7 +128,7 @@ namespace DiscordHealBot
                 .WithColor(embedColor)
                 .Build();
 
-            return new List<Embed>() {b};
+            return new List<Embed>() { b };
         }
 
         private static List<Embed> CreateFamilyEmbeds(List<EndPointHealthResult> epResults)
@@ -103,18 +154,18 @@ namespace DiscordHealBot
         {
             var average = Math.Round(keyValuePair.Value.Select(x => x.Latency).Average());
             var str =
-                $"Family Report : {keyValuePair.Key} ({keyValuePair.Value.DistinctBy(x=> x.EndpointAddress).Count() } endpoints, {keyValuePair.Value.Count} runs). Average latency is {average}ms";
+                $"Family Report : {keyValuePair.Key} ({keyValuePair.Value.DistinctBy(x => x.EndpointAddress).Count() } endpoints, {keyValuePair.Value.Count} runs). Average latency is {average}ms";
 
             EmbedBuilder builder = new EmbedBuilder();
             var slowest = keyValuePair.Value.GetSlowest();
-            
+
             var dot = slowest.Latency switch
             {
                 > 0 and < 1000 => "🟢",
-                >= 1000 and < 2000 =>  "🟠",
+                >= 1000 and < 2000 => "🟠",
                 _ => "🔴"
             };
-            
+
             Color embedColor = DecideEmbedColorFamily(keyValuePair.Value);
             var b = builder.WithTitle("Latency Report")
                 .WithDescription(str)
@@ -125,8 +176,8 @@ namespace DiscordHealBot
             return b;
         }
 
-       
-        
+
+
         private static string ToClassicDescription(List<EndPointHealthResult> epResults)
         {
             var str = epResults.Select(x =>
@@ -137,6 +188,6 @@ namespace DiscordHealBot
             return string.Join('\n', str);
         }
 
-       
+
     }
 }
