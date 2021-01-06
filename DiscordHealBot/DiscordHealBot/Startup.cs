@@ -34,6 +34,7 @@ namespace DiscordHealBot
             }
 
             this.QueueResults = new ConcurrentQueue<EndPointHealthResult>();
+            this.QueueErrors = new ConcurrentQueue<EndPointHealthResult>();
             this.CancellationTokenSource = new CancellationTokenSource();
         }
 
@@ -48,6 +49,7 @@ namespace DiscordHealBot
         protected string DiscordWebHook { get; set; }
 
         protected ConcurrentQueue<EndPointHealthResult> QueueResults { get; set; }
+        protected ConcurrentQueue<EndPointHealthResult> QueueErrors { get; set; }
 
         public async Task RunAsync()
         {
@@ -147,11 +149,17 @@ namespace DiscordHealBot
                 List<EndPointHealthResult> epResults = await RunEndPointsAsync();
                 foreach (EndPointHealthResult endPointHealthResult in epResults)
                 {
-                    QueueResults.Enqueue(endPointHealthResult);
+                    if(Settings.SendAlert && endPointHealthResult.Latency > Settings.AlertFloor)
+                        QueueErrors.Enqueue(endPointHealthResult);
+                    else
+                        QueueResults.Enqueue(endPointHealthResult);
                 }
+
+                await TrySendAlertAsync();
+
                 if (Settings.StoreData)
                     StoreEndpointsList(QueueResults.ToList());
-                await TrySendAlertAsync();
+
                 await Task.Delay(Settings.GetPollingTimeIntervalInMs());
             }
         }
@@ -160,23 +168,24 @@ namespace DiscordHealBot
         {
             if (Settings.SendAlert)
             {
-                var exceeded = QueueResults.Where(x => x.Latency > Settings.AlertFloor && !x.AlertSent).ToList();
-                if (exceeded.Count > 0)
+                if (QueueErrors.Count > 0)
                 {
+                    List<EndPointHealthResult> exceeded = new List<EndPointHealthResult>();
+                    while (QueueErrors.TryDequeue(out var endPointHealthResult))
+                    {
+                        exceeded.Add(endPointHealthResult);
+                    }
+
                     bool success = await BroadCaster.BroadcastAlertAsync(exceeded, DiscordWebHook, Logger);
-                    if(success)
-                        UpdateDataAfterSendAlert(exceeded);
+                    if (success)
+                    {
+                        foreach (var e in exceeded)
+                        {
+                            QueueResults.Enqueue(e);
+                        }
+                    }
                 }
             }
-        }
-
-        private void UpdateDataAfterSendAlert(List<EndPointHealthResult> exceeded)
-        {
-            foreach(var ep in exceeded)
-                QueueResults.Where(x => x.EndpointAddress == ep.EndpointAddress && x.Latency == ep.Latency && x.DateRun == ep.DateRun).FirstOrDefault().AlertSent = true;
-
-            if(Settings.StoreData)
-                StoreEndpointsList(QueueResults.ToList());
         }
 
         private async Task<List<EndPointHealthResult>> RunEndPointsAsync()
@@ -208,8 +217,7 @@ namespace DiscordHealBot
                     Success = success,
                     StatusCode = statusCode,
                     Family = ep.FamilyName,
-                    DateRun = DateTime.UtcNow,
-                    AlertSent = false
+                    DateRun = DateTime.UtcNow
                 };
 
                 endPointHealthResults.Add(healthResult);
