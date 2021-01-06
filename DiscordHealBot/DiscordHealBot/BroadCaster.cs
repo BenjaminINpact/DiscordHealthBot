@@ -61,11 +61,13 @@ namespace DiscordHealBot
  
         }
 
-        public static async Task BroadcastAlertAsync(List<EndPointHealthResult> epResults, string discordWebhook, ILogger logger)
+        public static async Task<bool> BroadcastAlertAsync(List<EndPointHealthResult> epResults, string discordWebhook, ILogger logger)
         {
-
             bool errorDiscordClient = false;
             DiscordWebhookClient client = null;
+            Color embedColor = Color.Red;
+            EmbedBuilder builder = new EmbedBuilder();
+
             try
             {
                 client = new DiscordWebhookClient(discordWebhook);
@@ -75,21 +77,23 @@ namespace DiscordHealBot
                 logger.LogInformation(e.Message);
                 errorDiscordClient = true;
             }
-            Color embedColor = Color.Red;
-            EmbedBuilder builder = new EmbedBuilder();
+
             var description = epResults.Select(x =>
             {
                 return $"⚠ : {x.EndpointAddress} responds with code {x.StatusCode} in {x.Latency}ms @here";
             }).ToList();
+
             var b = builder.WithTitle("Latency Alert")
                 .WithDescription(string.Join('\n', description))
                 .WithColor(embedColor)
                 .Build();
+
             List<Embed> embeds = new List<Embed>() { b };
+
             if (!errorDiscordClient)
                 await client.SendMessageAsync(embeds: embeds, username: "Latency Bot");
-            
-            
+
+            return !errorDiscordClient;
         }
 
         private static Color DecideEmbedColorClassic(List<EndPointHealthResult> epResults)
@@ -176,8 +180,6 @@ namespace DiscordHealBot
             return b;
         }
 
-
-
         private static string ToClassicDescription(List<EndPointHealthResult> epResults)
         {
             var str = epResults.Select(x =>
@@ -187,7 +189,6 @@ namespace DiscordHealBot
 
             return string.Join('\n', str);
         }
-
 
     }
 }
